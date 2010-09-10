@@ -3,6 +3,9 @@
 
 import Control.Monad.State
 import qualified Data.Map as M
+import qualified UI.HSCurses.Curses as C
+import qualified UI.HSCurses.CursesHelper as CH
+import qualified UI.HSCurses.Widgets as W
 
 data Rectangle = Rectangle
     { rect_x        :: Int
@@ -12,15 +15,12 @@ data Rectangle = Rectangle
     } deriving (Show, Eq)
 rtest = Rectangle 0 0 0 0
 
-data Key = Keyx | Keyq
-    deriving (Show, Eq, Ord)
-
 data HMPCState = HMPCState 
     { current_screen    :: Screen
     , screens           :: [Screen]
-    , global_keys       :: M.Map Key (IO ())
+    , global_keys       :: M.Map C.Key (IO ())
     }
-hmpctest = HMPCState "a" ["a","b","c","d"] (M.singleton Keyx (putStrLn "test"))
+hmpctest = HMPCState "a" ["a","b","c","d"] (M.singleton (C.KeyChar 'q') (return ()))
 
 data SimpleLayout = SimpleLayout
 
@@ -36,7 +36,7 @@ type Widget = String
 wtest :: [Widget]
 wtest = ["a","b","c","d"]
 
-processKey :: Key -> StateT HMPCState IO ()
+processKey :: C.Key -> StateT HMPCState IO ()
 processKey k = do si <- get
                   let a = M.lookup k (global_keys si)
                   liftIO $ maybe (return ()) (liftM id) a
@@ -51,4 +51,17 @@ switchScreen n = do si <- get
 screenAction k = processKey k >> switchScreen 2 >> displayLayout
 displayLayout = (runLayout SimpleLayout wtest ) rtest
 
-main = runStateT (screenAction Keyx) hmpctest
+eventloop = do k <- liftIO $ CH.getKey C.refresh
+               processKey k
+               eventloop
+               
+               
+main = do CH.start
+          CH.end
+          runStateT eventloop hmpctest
+
+instance Ord C.Key where
+    x < y = show x < show y
+    x <= y = show x <= show y
+    x >= y = show x >= show y
+    x > y = show x > show y
