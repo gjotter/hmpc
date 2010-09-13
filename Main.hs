@@ -18,7 +18,7 @@ data Rectangle = Rectangle
     , rect_width    :: Int
     , rect_height   :: Int 
     } deriving (Show, Eq)
-rtest = Rectangle 0 0 20 20
+rtest = Rectangle 10 0 20 10
 
 data HMPCState = HMPCState 
     { current_screen    :: Screen
@@ -49,11 +49,18 @@ class LayoutClass l a where
     runLayout :: l a -> [a] -> Rectangle -> IO ()
 
 instance LayoutClass SimpleLayout Drawable where
-    runLayout SimpleLayout xs r = draw r (head xs)
+    runLayout SimpleLayout xs r =  sequence_ actions 
+                                   where actions = zipWith ($) (map draw rects) xs
+                                         rects = simpleHelper (length xs) r
 
 instance LayoutClass Layout a where
     runLayout (Layout l) = runLayout l
 
+simpleHelper :: Int -> Rectangle -> [Rectangle]
+simpleHelper n r =  map rect heights
+                    where step = floor $ (/fromIntegral n) $ fromIntegral $ rect_height r
+                          heights = [step,step*2..step*n]
+                          rect = (\x -> Rectangle (rect_x r) (x - step) (rect_width r) step)
 
 data Screen = forall a. (ScreenClass a) => Screen a
 
@@ -84,8 +91,8 @@ type HMPC = StateT HMPCState IO
 exitHmpc = liftIO $ CH.end >> exitSuccess
 
 drawTestWidget r = W.drawTextWidget pos size W.DHNormal 
-                    where pos = (rect_x r, rect_y r)
-                          size = (rect_width r, rect_height r)
+                    where pos = (rect_y r, rect_x r)
+                          size = (rect_height r, rect_width r)
 
 testWidget = W.TextWidget "test" 0 0 W.defaultTWOptions
 testWidget2 = W.TextWidget "test2" 0 0 W.defaultTWOptions
@@ -105,8 +112,9 @@ switchScreen n = do si <- get
                     return s
 
 screenAction n = do s <- switchScreen n
-                    liftIO $ displayScreen s rtest
-                    
+                    (h,w) <- liftIO $ C.scrSize
+                    let rect = Rectangle 0 0 (w-1) (h)
+                    liftIO $ displayScreen s rect
 
 {-
 screenAction k = processKey k >> switchScreen 2 >> displayLayout
@@ -120,6 +128,16 @@ eventloop = do k <- liftIO $ CH.getKey C.refresh
 main = do CH.start
           runStateT eventloop hmpctest
           CH.end
+
+{-
+main = do CH.start
+          (h,w) <- C.scrSize
+          putStrLn $ (show h) ++ (show w)
+          let r = Rectangle 0 0 (w-1) (h)
+          let rs = simpleHelper 2 r 
+          putStrLn $ show rs
+          CH.end
+-}     
 
 instance Ord C.Key where
     x < y = show x < show y
