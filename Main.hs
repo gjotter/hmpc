@@ -49,7 +49,7 @@ class LayoutClass l a where
     runLayout :: l a -> [a] -> Rectangle -> IO ()
 
 instance LayoutClass SimpleLayout Drawable where
-    runLayout SimpleLayout xs r =  sequence_ actions 
+    runLayout SimpleLayout xs r = sequence_ actions 
                                    where actions = zipWith ($) (map draw rects) xs
                                          rects = simpleHelper (length xs) r
 
@@ -57,10 +57,17 @@ instance LayoutClass Layout a where
     runLayout (Layout l) = runLayout l
 
 simpleHelper :: Int -> Rectangle -> [Rectangle]
-simpleHelper n r =  map rect heights
+simpleHelper n r =  tail $ snd . unzip $ iterate (generateRectangle step) (remain,r')
                     where step = floor $ (/fromIntegral n) $ fromIntegral $ rect_height r
-                          heights = [step,step*2..step*n]
-                          rect = (\x -> Rectangle (rect_x r) (x - step) (rect_width r) step)
+                          remain = (rect_height r) `mod` n
+                          r' = r { rect_height = 0}
+
+generateRectangle :: Int -> (Int,Rectangle) -> (Int,Rectangle)
+generateRectangle y_step (y_remain,r) = (y_remain',(r { rect_y = y_step + (rect_y r) + y_shift} ))
+                                      where y_shift | y_remain > 0 = 1
+                                                    | otherwise    = 0
+                                            y_remain' | y_remain < 1 = 0
+                                                      | otherwise = y_remain - 1
 
 data Screen = forall a. (ScreenClass a) => Screen a
 
