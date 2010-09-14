@@ -1,9 +1,11 @@
 {-# LANGUAGE ExistentialQuantification, FlexibleInstances, GeneralizedNewtypeDeriving,
-             MultiParamTypeClasses, TypeSynonymInstances #-}
+             MultiParamTypeClasses, TypeSynonymInstances, NoMonomorphismRestriction #-}
              
 module Hmpc.Core 
     ( hmpc
-    , HMPCState (..)
+    , HmpcConfig (..)
+    , exitHmpc
+    , switchScreen
     ) where
 
 import Hmpc.Layout
@@ -34,35 +36,25 @@ instance MonadMPD (StateT HMPCState MPD) where
     getHandle   = lift getHandle
     setPassword = lift . setPassword
     getVersion  = lift getVersion
-    
+
+data HmpcConfig = HmpcConfig 
+    { c_screens       :: [Screen]
+    , c_global_keymap :: [(C.Key, (HMPC ()))]
+    } 
+
 data HMPCState = HMPCState 
     { current_screen    :: Screen
     , screens           :: [Screen]
-    , global_keys       :: M.Map C.Key (HMPC ())
+    , global_keymap     :: M.Map C.Key (HMPC ())
     }
 
-hmpctest = HMPCState testScreena testScreens (M.fromList keyList)
-
-keyList = 
-    [(C.KeyChar 'q',    exitHmpc)
-    ,(C.KeyChar 'j',    switchScreen 0)
-    ,(C.KeyChar 'k',    switchScreen 1)
-    ] 
-
-testScreens = testScreena : testScreenb : []
-testScreena = Screen $ SimpleScreen testWidgets (Layout StackLayout)
-testScreenb = Screen $ SimpleScreen (reverse testWidgets) (Layout StackLayout)
-
-testWidget = W.TextWidget "test" 0 0 W.defaultTWOptions
-testWidget2 = W.TextWidget "test2" 0 0 W.defaultTWOptions
-testWidgets = map Drawable (testWidget : testWidget2 : [])
+createHMPCState c = HMPCState (head $ c_screens c) (c_screens c) (M.fromList $ c_global_keymap c)
 
 exitHmpc = liftIO $ CH.end >> exitSuccess
 
 processKey :: C.Key -> HMPC ()
 processKey k = do si <- get
-                  let a = M.lookup k (global_keys si)
-                  let sk = CH.displayKey k
+                  let a = M.lookup k (global_keymap si)
                   maybe (return ()) (id) a
 
 switchScreen :: Int -> HMPC ()
@@ -79,9 +71,10 @@ eventloop = do k <- liftIO $ CH.getKey C.refresh
                processKey k
                eventloop
 
-hmpc = do CH.start
-          withMPD $ runStateT (runHMPC eventloop) hmpctest
-          CH.end
+hmpc c = do let c' = createHMPCState c
+            CH.start
+            withMPD $ runStateT (runHMPC eventloop) c'
+            CH.end
 
 instance Ord C.Key where
     x < y = show x < show y
