@@ -29,8 +29,8 @@ hmpctest = HMPCState testScreena testScreens (M.fromList keyList)
 
 keyList = 
     [(C.KeyChar 'q',    exitHmpc)
-    ,(C.KeyChar 'j',    screenAction 0)
-    ,(C.KeyChar 'k',    screenAction 1)
+    ,(C.KeyChar 'j',    switchScreen 0)
+    ,(C.KeyChar 'k',    switchScreen 1)
     ] 
 
 data SimpleLayout a = SimpleLayout
@@ -57,17 +57,20 @@ instance LayoutClass Layout a where
     runLayout (Layout l) = runLayout l
 
 simpleHelper :: Int -> Rectangle -> [Rectangle]
-simpleHelper n r =  tail $ snd . unzip $ iterate (generateRectangle step) (remain,r')
+simpleHelper n r =  snd . unzip $ iterate (generateRectangle step) (remain,r')
                     where step = floor $ (/fromIntegral n) $ fromIntegral $ rect_height r
                           remain = (rect_height r) `mod` n
-                          r' = r { rect_height = 0}
+                          r' = r { rect_height = step + y_shift }
+                          y_shift | remain > 0 = 1
+                                  | otherwise  = 0
 
 generateRectangle :: Int -> (Int,Rectangle) -> (Int,Rectangle)
-generateRectangle y_step (y_remain,r) = (y_remain',(r { rect_y = y_step + (rect_y r) + y_shift} ))
-                                      where y_shift | y_remain > 0 = 1
-                                                    | otherwise    = 0
-                                            y_remain' | y_remain < 1 = 0
-                                                      | otherwise = y_remain - 1
+generateRectangle y_step (y_remain,r) = (y_remain - 1,r')
+                                        where r' = r { rect_y      = y_step + (rect_y r) + y_shift
+                                                     , rect_height = y_step 
+                                                     }
+                                              y_shift | y_remain > 0 = 1
+                                                      | otherwise    = 0
 
 data Screen = forall a. (ScreenClass a) => Screen a
 
@@ -90,16 +93,16 @@ instance DrawableClass Drawable where
     draw r (Drawable a) = draw r a
 
 instance DrawableClass W.TextWidget where
-    draw r w = drawTestWidget r w
+    draw r w = drawTextWidget r w
 
 
 type HMPC = StateT HMPCState IO
 
 exitHmpc = liftIO $ CH.end >> exitSuccess
 
-drawTestWidget r = W.drawTextWidget pos size W.DHNormal 
-                    where pos = (rect_y r, rect_x r)
-                          size = (rect_height r, rect_width r)
+drawTextWidget r = W.drawTextWidget pos size W.DHNormal 
+                   where pos = (rect_y r, rect_x r)
+                         size = (rect_height r, rect_width r)
 
 testWidget = W.TextWidget "test" 0 0 W.defaultTWOptions
 testWidget2 = W.TextWidget "test2" 0 0 W.defaultTWOptions
@@ -111,22 +114,14 @@ processKey k = do si <- get
                   let sk = CH.displayKey k
                   maybe (return ()) (id) a
 
-switchScreen :: Int -> HMPC Screen
+switchScreen :: Int -> HMPC ()
 switchScreen n = do si <- get
                     let ss = screens si
                     let s = ss !! n
                     put (si { screens = ss, current_screen = s})
-                    return s
-
-screenAction n = do s <- switchScreen n
                     (h,w) <- liftIO $ C.scrSize
                     let rect = Rectangle 0 0 (w-1) (h)
                     liftIO $ displayScreen s rect
-
-{-
-screenAction k = processKey k >> switchScreen 2 >> displayLayout
-displayLayout = (runLayout SimpleLayout wtest ) rtest
--}
 
 eventloop = do k <- liftIO $ CH.getKey C.refresh
                processKey k
@@ -135,16 +130,6 @@ eventloop = do k <- liftIO $ CH.getKey C.refresh
 main = do CH.start
           runStateT eventloop hmpctest
           CH.end
-
-{-
-main = do CH.start
-          (h,w) <- C.scrSize
-          putStrLn $ (show h) ++ (show w)
-          let r = Rectangle 0 0 (w-1) (h)
-          let rs = simpleHelper 2 r 
-          putStrLn $ show rs
-          CH.end
--}     
 
 instance Ord C.Key where
     x < y = show x < show y
