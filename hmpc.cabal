@@ -1,4 +1,4 @@
-name:                hmpd
+name:                hmpc
 version:             0.0.1
 homepage:            http://www.test.com
 license:             GPL
@@ -12,7 +12,7 @@ description:
 cabal-version:       >= 1.2
 build-type:          Simple
 
-executable hmp3
+executable hmpc
     build-depends:     unix,
                        hscurses >= 0.1,
                        mtl,
