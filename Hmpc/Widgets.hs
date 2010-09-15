@@ -19,6 +19,7 @@ data PlaylistWidget = PlaylistWidget
     , pl_index          :: Integer
     , pl_pos            :: Integer
     , pl_songs          :: [MPD.Song]
+    , pl_drawhint       :: W.DrawingHint
     }
 
 drawPlaylistWidget :: Rectangle -> PlaylistWidget -> HMPC PlaylistWidget
@@ -32,7 +33,9 @@ drawPlaylistWidget r pl = do s <- MPD.status
 drawPlaylistWidget' :: Rectangle -> PlaylistWidget -> HMPC PlaylistWidget
 drawPlaylistWidget' r pl = do let n = rect_height r 
                               let songs = take n $ pl_songs pl
-                              return pl
+                              let as = intercalate "\n" $ getArtists songs
+                              let w' = W.textWidgetSetText (pl_textwidget pl) as
+                              return pl { pl_textwidget = w' }
 
 updatePlaylistWidget :: Rectangle -> PlaylistWidget -> HMPC PlaylistWidget
 updatePlaylistWidget r pl = do songs <- MPD.playlistInfo Nothing
