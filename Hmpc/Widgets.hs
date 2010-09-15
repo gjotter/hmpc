@@ -30,11 +30,15 @@ drawPlaylistWidget r pl = do s <- MPD.status
                                 else drawPlaylistWidget' r pl
 
 drawPlaylistWidget' :: Rectangle -> PlaylistWidget -> HMPC PlaylistWidget
-drawPlaylistWidget' r pl = return pl
+drawPlaylistWidget' r pl = do let n = rect_height r 
+                              let songs = take n $ pl_songs pl
+                              return pl
 
 updatePlaylistWidget :: Rectangle -> PlaylistWidget -> HMPC PlaylistWidget
 updatePlaylistWidget r pl = do songs <- MPD.playlistInfo Nothing
-                               let pl' = pl { pl_songs = songs }
+                               status <- MPD.status
+                               let pl_id = MPD.stPlaylistID status
+                               let pl' = pl { pl_songs = songs, pl_index = pl_id }
                                drawPlaylistWidget' r pl'
 
 drawTextWidget :: Rectangle -> W.TextWidget -> HMPC ()
