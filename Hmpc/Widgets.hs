@@ -21,6 +21,17 @@ data PlaylistWidget = PlaylistWidget
     , pl_songs          :: [MPD.Song]
     }
 
+drawPlaylistWidget :: PlaylistWidget -> HMPC () 
+drawPlaylistWidget pl = do if (pl_songs pl) == [] 
+                            then updatePlaylistWidget pl
+                            else drawPlaylistWidget' pl
+
+drawPlaylistWidget' :: PlaylistWidget -> HMPC () 
+drawPlaylistWidget' pl = return ()
+
+updatePlaylistWidget :: PlaylistWidget -> HMPC () 
+updatePlaylistWidget pl = return ()
+
 drawTextWidget :: Rectangle -> W.TextWidget -> HMPC ()
 drawTextWidget r w = do pl <- MPD.playlistInfo (Just (0,rect_height r))
                         let w' = W.textWidgetSetText w $ intercalate "\n" $ getArtists pl
