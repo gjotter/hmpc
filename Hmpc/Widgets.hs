@@ -16,21 +16,26 @@ instance DrawableClass W.TextWidget where
 
 data PlaylistWidget = PlaylistWidget 
     { pl_textwidget     :: W.TextWidget
-    , pl_index          :: Int
-    , pl_pos            :: Int
+    , pl_index          :: Integer
+    , pl_pos            :: Integer
     , pl_songs          :: [MPD.Song]
     }
 
-drawPlaylistWidget :: PlaylistWidget -> HMPC () 
-drawPlaylistWidget pl = do if (pl_songs pl) == [] 
+drawPlaylistWidget :: PlaylistWidget -> HMPC PlaylistWidget
+drawPlaylistWidget pl = do s <- MPD.status
+                           let pl_id = MPD.stPlaylistID s
+                           let pl_id' = pl_index pl
+                           if (pl_songs pl) == [] || pl_id > pl_id'
                             then updatePlaylistWidget pl
                             else drawPlaylistWidget' pl
 
-drawPlaylistWidget' :: PlaylistWidget -> HMPC () 
-drawPlaylistWidget' pl = return ()
+drawPlaylistWidget' :: PlaylistWidget -> HMPC PlaylistWidget
+drawPlaylistWidget' pl = return pl
 
-updatePlaylistWidget :: PlaylistWidget -> HMPC () 
-updatePlaylistWidget pl = return ()
+updatePlaylistWidget :: PlaylistWidget -> HMPC PlaylistWidget
+updatePlaylistWidget pl = do songs <- MPD.playlistInfo Nothing
+                             let pl' = pl { pl_songs = songs }
+                             drawPlaylistWidget' pl'
 
 drawTextWidget :: Rectangle -> W.TextWidget -> HMPC ()
 drawTextWidget r w = do pl <- MPD.playlistInfo (Just (0,rect_height r))
