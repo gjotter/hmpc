@@ -14,6 +14,13 @@ import Data.List (intercalate)
 instance DrawableClass W.TextWidget where
     draw r w = drawTextWidget r w
 
+data PlaylistWidget = PlaylistWidget 
+    { pl_textwidget     :: W.TextWidget
+    , pl_index          :: Int
+    , pl_pos            :: Int
+    , pl_songs          :: [MPD.Song]
+    }
+
 drawTextWidget :: Rectangle -> W.TextWidget -> HMPC ()
 drawTextWidget r w = do pl <- MPD.playlistInfo (Just (0,rect_height r))
                         let w' = W.textWidgetSetText w $ intercalate "\n" $ getArtists pl
