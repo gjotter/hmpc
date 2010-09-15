@@ -31,22 +31,23 @@ drawPlaylistWidget r pl = do s <- MPD.status
                                 else drawPlaylistWidget' r pl
 
 drawPlaylistWidget' :: Rectangle -> PlaylistWidget -> HMPC PlaylistWidget
-drawPlaylistWidget' r pl = do let n = rect_height r 
-                              let songs = take n $ pl_songs pl
-                              let as = intercalate "\n" $ getArtists songs
-                              let w' = W.textWidgetSetText (pl_textwidget pl) as
-                              return pl { pl_textwidget = w' }
+drawPlaylistWidget' r pl = return pl { pl_textwidget = w' }
+                         where 
+                            w' = W.textWidgetSetText (pl_textwidget pl) as
+                            as = intercalate "\n" $ getArtists songs
+                            songs = take (rect_height r) $ pl_songs pl
 
 updatePlaylistWidget :: Rectangle -> PlaylistWidget -> HMPC PlaylistWidget
 updatePlaylistWidget r pl = do songs <- MPD.playlistInfo Nothing
                                status <- MPD.status
-                               let pl_id = MPD.stPlaylistID status
                                let pl' = pl { pl_songs = songs, pl_index = pl_id }
+                                   pl_id = MPD.stPlaylistID status
                                drawPlaylistWidget' r pl'
 
 drawTextWidget :: Rectangle -> W.TextWidget -> HMPC W.TextWidget
 drawTextWidget r w = do pl <- MPD.playlistInfo (Just (0,rect_height r))
-                        let w' = W.textWidgetSetText w $ intercalate "\n" $ getArtists pl
+                        let as = intercalate "\n" $ getArtists pl
+                            w' = W.textWidgetSetText w as
                         liftIO $ W.drawTextWidget pos size W.DHNormal w'
                         return w'
                         where pos = (rect_y r, rect_x r)
