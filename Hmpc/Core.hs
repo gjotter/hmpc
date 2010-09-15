@@ -67,7 +67,7 @@ data Rectangle = Rectangle
 data Layout a = forall l. (LayoutClass l a) => Layout (l a)
 
 class LayoutClass l a where
-    runLayout :: l a -> [a] -> Rectangle -> HMPC ()
+    runLayout :: l a -> [a] -> Rectangle -> HMPC [a]
 
 instance LayoutClass Layout a where
     runLayout (Layout l) = runLayout l
@@ -76,19 +76,21 @@ instance LayoutClass Layout a where
 data Screen = forall a. (ScreenClass a) => Screen a
 
 class ScreenClass a where
-    displayScreen :: a -> Rectangle -> HMPC ()
+    displayScreen :: a -> Rectangle -> HMPC a
 
 instance ScreenClass Screen where
-    displayScreen (Screen a) r = displayScreen a r
+    displayScreen (Screen a) r = do s <- displayScreen a r
+                                    return (Screen s)
 
 
 data Drawable = forall a. (DrawableClass a) => Drawable a
 
 class DrawableClass a where
-    draw :: Rectangle -> a -> HMPC ()
+    draw :: Rectangle -> a -> HMPC a
 
 instance DrawableClass Drawable where
-    draw r (Drawable a) = draw r a
+    draw r (Drawable a) = do d <- draw r a
+                             return (Drawable d)
 
 
 exitHmpc :: HMPC ()
@@ -103,10 +105,11 @@ switchScreen :: Int -> HMPC ()
 switchScreen n = do si <- get
                     let ss = screens si
                     let s = ss !! n
-                    put (si { screens = ss, current_screen = s})
                     (h,w) <- liftIO $ C.scrSize
                     let rect = Rectangle 0 0 (w-1) (h-1)
-                    displayScreen s rect
+                    s' <- displayScreen s rect
+                    --todo replace screen from list
+                    put (si { screens = ss, current_screen = s'})
 
 eventloop :: HMPC ()
 eventloop = do k <- liftIO $ CH.getKey C.refresh

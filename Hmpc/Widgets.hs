@@ -12,7 +12,7 @@ import qualified Data.Map as M
 import Data.List (intercalate)
 
 instance DrawableClass W.TextWidget where
-    draw r w = drawTextWidget r w
+    draw r w = drawTextWidget r w >>= return
 
 data PlaylistWidget = PlaylistWidget 
     { pl_textwidget     :: W.TextWidget
@@ -41,10 +41,11 @@ updatePlaylistWidget r pl = do songs <- MPD.playlistInfo Nothing
                                let pl' = pl { pl_songs = songs, pl_index = pl_id }
                                drawPlaylistWidget' r pl'
 
-drawTextWidget :: Rectangle -> W.TextWidget -> HMPC ()
+drawTextWidget :: Rectangle -> W.TextWidget -> HMPC W.TextWidget
 drawTextWidget r w = do pl <- MPD.playlistInfo (Just (0,rect_height r))
                         let w' = W.textWidgetSetText w $ intercalate "\n" $ getArtists pl
                         liftIO $ W.drawTextWidget pos size W.DHNormal w'
+                        return w'
                         where pos = (rect_y r, rect_x r)
                               size = (rect_height r, rect_width r)
 

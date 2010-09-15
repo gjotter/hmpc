@@ -18,7 +18,7 @@ data SimpleScreen = SimpleScreen
     }
 
 instance LayoutClass StackLayout Drawable where
-    runLayout StackLayout xs r = sequence_ actions 
+    runLayout StackLayout xs r = sequence actions 
                                where actions = zipWith ($) (map draw rects) xs
                                      rects   = stackHelper (length xs) r
 
@@ -38,7 +38,8 @@ generateStackRectangles s (m,r) = (m - 1,r')
                                          | otherwise    = 0
 
 instance ScreenClass SimpleScreen where
-    displayScreen s r = runLayout (layout s) (widgets s) r
+    displayScreen s r = do w' <- runLayout (layout s) (widgets s) r
+                           return s { widgets = w' }
 
 
 
