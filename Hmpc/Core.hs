@@ -17,16 +17,17 @@ module Hmpc.Core
     ) where
 
 import System.Exit
-import Control.Monad.State
+import Control.Exception
 import qualified Data.Map as M
 
 import qualified UI.HSCurses.Curses as C
 import qualified UI.HSCurses.CursesHelper as CH
 import qualified UI.HSCurses.Widgets as W
 import Network.MPD as MPD
+import Data.List
 import Network.MPD.Core
 
-import Control.Monad.State()
+import Control.Monad.State
 import Control.Monad.Error
 
 newtype HMPC a = HMPC { 
@@ -49,13 +50,13 @@ data HmpcConfig = HmpcConfig
     } 
 
 data HMPCState = HMPCState 
-    { current_screen    :: Screen
-    , screens           :: [Screen]
-    , global_keymap     :: M.Map C.Key (HMPC ())
+    { hmpc_focus     :: !Int
+    , hmpc_screens   :: ![Screen]
+    , hmpc_keymap    :: !(M.Map C.Key (HMPC ()))
     }
 
 createHMPCState :: HmpcConfig -> HMPCState
-createHMPCState c = HMPCState (head $ c_screens c) (c_screens c) (M.fromList $ c_global_keymap c)
+createHMPCState c = HMPCState 0 (c_screens c) (M.fromList $ c_global_keymap c)
 
 data Rectangle = Rectangle
     { rect_x        :: Int
@@ -98,18 +99,20 @@ exitHmpc = liftIO $ CH.end >> exitSuccess
 
 processKey :: C.Key -> HMPC ()
 processKey k = do si <- get
-                  let a = M.lookup k (global_keymap si)
+                  let a = M.lookup k (hmpc_keymap si)
                   maybe (return ()) (id) a
 
 switchScreen :: Int -> HMPC ()
-switchScreen n = do si <- get
-                    let ss = screens si
-                    let s = ss !! n
-                    (h,w) <- liftIO $ C.scrSize
+switchScreen n = do (h,w) <- liftIO $ C.scrSize
+                    ss <- gets hmpc_screens 
                     let rect = Rectangle 0 0 (w-1) (h-1)
-                    s' <- displayScreen s rect
-                    --todo replace screen from list
-                    put (si { screens = ss, current_screen = s'})
+                    s' <- displayScreen (ss !! n) rect
+                    let ss' = replaceNth n s' ss
+                    modify (\s -> s { hmpc_screens = ss', hmpc_focus = n})
+
+replaceNth :: Int -> a -> [a] -> [a]
+replaceNth n x xs = h ++ [x] ++ (tail t)
+                  where (h,t) = splitAt n xs
 
 eventloop :: HMPC ()
 eventloop = do k <- liftIO $ CH.getKey C.refresh
@@ -117,7 +120,7 @@ eventloop = do k <- liftIO $ CH.getKey C.refresh
                eventloop
 
 hmpc :: HmpcConfig -> IO ()
-hmpc c = do let c' = createHMPCState c
+hmpc c = do let c' = createHMPCState c 
             CH.start
             _ <- withMPD $ runStateT (runHMPC eventloop) c'
             CH.end

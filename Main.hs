@@ -13,23 +13,18 @@ testKeymap =
     [(C.KeyChar 'q',    exitHmpc)
     ,(C.KeyChar 'j',    switchScreen 0)
     ,(C.KeyChar 'k',    switchScreen 1)
+    ,(C.KeyChar 'x',    switchScreen 2)
     ] 
 
 testScreens :: [Screen]
-testScreens = testScreena : testScreenb : []
+testScreens = [testScreena,testScreenb]
 
 testScreena :: Screen
-testScreena = Screen $ SimpleScreen testWidgets (Layout StackLayout)
+testScreena = Screen $ SimpleScreen [Drawable playlist, Drawable playlist'] (Layout StackLayout)
 
 testScreenb :: Screen
-testScreenb = Screen $ SimpleScreen [Drawable testWidget2] (Layout StackLayout)
+testScreenb = Screen $ SimpleScreen [Drawable playlist''] (Layout StackLayout)
 
-testWidget :: TextWidget
-testWidget = W.TextWidget "test" 0 0 W.defaultTWOptions
-
-testWidget2 :: TextWidget
-testWidget2 = W.TextWidget "test2" 0 0 W.defaultTWOptions
-
-testWidgets :: [Drawable]
-testWidgets = map Drawable (testWidget : testWidget2 : [])
-
+playlist = PlaylistWidget (W.TextWidget [] 0 0 W.defaultTWOptions) 0 0 0 100 [] W.DHNormal
+playlist' = PlaylistWidget (W.TextWidget [] 0 0 W.defaultTWOptions) 0 0 0 200 [] W.DHNormal
+playlist'' = PlaylistWidget (W.TextWidget [] 0 0 W.defaultTWOptions) 0 0 0 300 [] W.DHNormal

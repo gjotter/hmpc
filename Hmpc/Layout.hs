@@ -8,13 +8,13 @@ module Hmpc.Layout
     ) where
 
 import Hmpc.Core
-import Hmpc.Widgets
+import Hmpc.Widgets()
 
 data StackLayout a = StackLayout
 
 data SimpleScreen = SimpleScreen
-    { widgets   :: [Drawable]
-    , layout    :: Layout Drawable
+    { smpl_widgets   :: ![Drawable]
+    , smpl_layout    :: !(Layout Drawable)
     }
 
 instance LayoutClass StackLayout Drawable where
@@ -24,7 +24,7 @@ instance LayoutClass StackLayout Drawable where
 
 stackHelper :: Int -> Rectangle -> [Rectangle]
 stackHelper n r = snd . unzip $ iterate (generateStackRectangles step) (remain,r')
-                where step    = floor $ (/fromIntegral n) $ fromIntegral $ rect_height r
+                where step    = floor $ (fromIntegral $ rect_height r) / (fromIntegral n)
                       remain  = (rect_height r) `mod` n
                       r'      = r { rect_height = step + y_shift }
                       y_shift | remain > 0 = 1
@@ -38,8 +38,8 @@ generateStackRectangles s (m,r) = (m - 1,r')
                                          | otherwise    = 0
 
 instance ScreenClass SimpleScreen where
-    displayScreen s r = do w' <- runLayout (layout s) (widgets s) r
-                           return s { widgets = w' }
+    displayScreen s r = do w' <- runLayout (smpl_layout s) (smpl_widgets s) r
+                           return s { smpl_widgets = w' }
 
 
 
