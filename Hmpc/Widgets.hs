@@ -20,14 +20,20 @@ instance DrawableClass PlaylistWidget where
     draw r w = drawPlaylistWidget r w >>= return
 
 data PlaylistWidget = PlaylistWidget 
-    { pl_textwidget     :: !W.TextWidget
+    { pl_tw             :: !W.TextWidget
+    , pl_twstyle        :: !W.DrawingStyle
+    , pl_twalign        :: !W.HAlignment
+    , pl_twdrawhint     :: !W.DrawingHint
+    , pl_size           :: !Size
     , pl_id             :: !Integer
     , pl_pos            :: !Int
     , pl_bufferpos      :: !Int
-    , pl_buffer         :: !Int
+    , pl_buffer         :: !(Maybe Int)
     , pl_songs          :: ![MPD.Song]
-    , pl_drawhint       :: !W.DrawingHint
+    , pl_display        :: ![MPD.Metadata]
     }
+
+type Size = (Int,Int)
 
 drawPlaylistWidget :: Rectangle -> PlaylistWidget -> HMPC PlaylistWidget
 drawPlaylistWidget r pl = do s <- MPD.status
@@ -38,20 +44,35 @@ drawPlaylistWidget r pl = do s <- MPD.status
                                 else drawPlaylistWidget' r pl
 
 drawPlaylistWidget' :: Rectangle -> PlaylistWidget -> HMPC PlaylistWidget
-drawPlaylistWidget' r pl = do liftIO $ W.drawTextWidget pos size (pl_drawhint pl) w'
-                              return (pl { pl_textwidget = w' })
-                              where w'    = W.newTextWidget wo as
-                                    wo    = W.TWOptions (W.TWSizeFixed size) W.defaultDrawingStyle W.AlignLeft
-                                    as    = (intercalate "\n" $ getArtists songs)
-                                    songs = pl_songs pl
-                                    pos   = (rect_y r, rect_x r)
-                                    size  = (rect_height r, rect_width r)
-                                    
-
+drawPlaylistWidget' r pl = do liftIO $ W.drawTextWidget pos size (pl_twdrawhint pl) (pl_tw pl')
+                              return pl'
+                              where pl'  = updatePlaylistTextWidget pl size
+                                    pos  = (rect_y r, rect_x r)
+                                    size = (rect_height r, rect_width r)
+                             
 updatePlaylistWidget :: Rectangle -> Integer -> PlaylistWidget -> HMPC PlaylistWidget
-updatePlaylistWidget r pid pl = do songs <- MPD.playlistInfo $ Just (pl_pos pl, rect_height r)
+updatePlaylistWidget r pid pl = do songs <- MPD.playlistInfo $ playlistBufferSize pl r
                                    let pl' = pl { pl_songs = songs, pl_id = pid }
                                    drawPlaylistWidget' r pl'
+
+updatePlaylistTextWidget :: PlaylistWidget -> Size -> PlaylistWidget 
+updatePlaylistTextWidget pl s | s /= s' = pl { pl_tw = W.newTextWidget wo str, pl_size = s' }
+                              | otherwise    = pl
+                              where wo  = W.TWOptions (W.TWSizeFixed s) (pl_twstyle pl) (pl_twalign pl)
+                                    str = playlistSongs pl
+                                    s'  = pl_size pl
+
+playlistBufferSize :: PlaylistWidget -> Rectangle -> Maybe Size
+playlistBufferSize pl r = maybe (Nothing) (Just . size) $ pl_buffer pl
+                        where size bs = (toZero $ (pl_pos pl) - bs, (rect_height r) + bs)
+
+playlistSongs :: PlaylistWidget -> String
+playlistSongs pl = intercalate "\n" $ map (playlistSong pl) (pl_songs pl) 
+
+playlistSong :: PlaylistWidget -> MPD.Song -> String
+playlistSong pl s = intercalate " - " $ concat $ map (maybe [] id) dt
+                  where dt = map (\x -> x t) $ map M.lookup (pl_display pl) 
+                        t  = MPD.sgTags s
 
 drawTextWidget :: Rectangle -> W.TextWidget -> HMPC W.TextWidget
 drawTextWidget r w = do pl <- MPD.playlistInfo (Just (0,rect_height r))
@@ -61,6 +82,10 @@ drawTextWidget r w = do pl <- MPD.playlistInfo (Just (0,rect_height r))
                         return w'
                         where pos  = (rect_y r, rect_x r)
                               size = (rect_height r, rect_width r)
+
+toZero :: (Ord a, Num a) => a -> a
+toZero n | n < 0 = 0
+         | otherwise = n
 
 getArtists :: [MPD.Song] -> [String]
 getArtists ss = concat $ map (maybe [] id) maybea

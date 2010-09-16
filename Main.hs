@@ -4,6 +4,7 @@ import Hmpc.Widgets
 
 import UI.HSCurses.Curses as C
 import UI.HSCurses.Widgets as W
+import qualified Network.MPD as MPD
 
 main :: IO ()
 main = hmpc $ HmpcConfig testScreens testKeymap
@@ -25,6 +26,18 @@ testScreena = Screen $ SimpleScreen [Drawable playlist, Drawable playlist'] (Lay
 testScreenb :: Screen
 testScreenb = Screen $ SimpleScreen [Drawable playlist''] (Layout StackLayout)
 
-playlist = PlaylistWidget (W.TextWidget [] 0 0 W.defaultTWOptions) 0 0 0 100 [] W.DHNormal
-playlist' = PlaylistWidget (W.TextWidget [] 0 0 W.defaultTWOptions) 0 0 0 200 [] W.DHNormal
-playlist'' = PlaylistWidget (W.TextWidget [] 0 0 W.defaultTWOptions) 0 0 0 300 [] W.DHNormal
+playlist = PlaylistWidget 
+            (W.TextWidget [] 0 0 W.defaultTWOptions) 
+            W.defaultDrawingStyle 
+            W.AlignLeft
+            W.DHNormal
+            (0,0)
+            0
+            0
+            0
+            Nothing
+            []
+            [MPD.Artist,MPD.Album,MPD.Title]
+
+playlist'  = playlist { pl_buffer = Just 100 }            
+playlist'' = playlist { pl_buffer = Just 200 }            
